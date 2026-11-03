@@ -5,7 +5,4 @@ For TAIR12
 
 [ ] Prepare de-novo motif generation and TOMTOM call
 
-
-[ ] LRT code
-[ ] Shiny app LRT tests
-[ ] Test LRT code with hormone data
+[ ] Skeleton code DESeq2

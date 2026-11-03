@@ -104,7 +104,7 @@ Here we need genome information.
 We will construct 2. One based on 6-mers, which does require extra steps to map it to TFs, another based on the JASPAR's PWM, which already indicates 
 the TF. We do not use DAP-seq because that mapping was done in TAIR10 and it does not seem easy to use it on TAIR12.
 
-# Statistical analysis (LRT focus)
+# Statistical analysis
 Now we switch gears and programming language!
 
 ## Motif Enrichment Analysis
