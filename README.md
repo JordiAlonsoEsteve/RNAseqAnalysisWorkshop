@@ -107,6 +107,4 @@ the TF. We do not use DAP-seq because that mapping was done in TAIR10 and it doe
 # Statistical analysis (LRT focus)
 Now we switch gears and programming language!
 
-## Why Likelihood Ratio Test?
-
 ## Motif Enrichment Analysis
