@@ -1,0 +1,1 @@
+from motifcompass.featureConstruction.k_mer import generate_kmer_count_vector
