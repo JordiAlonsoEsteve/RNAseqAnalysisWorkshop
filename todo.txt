@@ -1,8 +1,0 @@
-For TAIR12
-[x] Generate k-mer counts vector
-[x] Generate PWM activation vector
-[ ] Biplot visualization code for the temperature_treatment_time_rep format
-
-[ ] Prepare de-novo motif generation and TOMTOM call
-
-[ ] Skeleton code DESeq2
