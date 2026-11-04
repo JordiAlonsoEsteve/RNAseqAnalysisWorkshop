@@ -234,7 +234,7 @@ def plot_pca(
 
 
 if __name__ == "__main__":
-    lfc = pd.read_csv("data/old_rna_seq_demo/processed_count_matrix_with_generated_tmp.csv", index_col=0)
+    lfc = pd.read_csv("data/PDAMP/processed/log2FC.csv", index_col=0)
     # drop columns that have 28C
     #lfc = lfc.loc[:, ~lfc.columns.str.contains("28C")]
     ax = plot_pca(lfc, standardize=False)

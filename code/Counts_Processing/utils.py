@@ -133,13 +133,15 @@ def process_counts_log2FC(
     return lfc
 
 if __name__ == "__main__":
-    raw_demo_data = pd.read_csv("data/old_rna_seq_demo/raw_count_matrix_with_generated_tmp.csv", index_col=0)
+    raw_pdamp = pd.read_csv("data/PDAMP/counts_genes_x_samples.tsv", index_col=0, sep="\t")
+    # drop gene_name column if present
+    if "gene_name" in raw_pdamp.columns:
+        raw_pdamp = raw_pdamp.drop(columns="gene_name")
+    # drop columns that have untreated as treatment
+    raw_pdamp = raw_pdamp.loc[:, ~raw_pdamp.columns.str.contains("_untreated_")]
+    
+    normalized_pdamp_data = median_of_ratios_normalization(raw_pdamp)
 
-    normalized_demo_data = median_of_ratios_normalization(raw_demo_data)
-
-    processed_demo_data = process_counts_log2FC(normalized_demo_data)
+    processed_pdamp_data = process_counts_log2FC(normalized_pdamp_data, control_temperature = "21", control_treatment = "mock")
     # save 
-    processed_demo_data.to_csv("data/old_rna_seq_demo/processed_count_matrix_with_generated_tmp.csv")
-
-    # check mean per gene
-    gene_means = processed_demo_data.mean(axis=1)   
+    processed_pdamp_data.to_csv("data/PDAMP/processed/log2FC.csv")

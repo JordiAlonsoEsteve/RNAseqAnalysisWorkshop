@@ -84,6 +84,10 @@ Values are then clipped to $[-c, c]$ (default $c = 4$) so that a few extreme gen
 $$\log_2 \text{FC}^{\text{clip}} = \max\!\big(-c,\ \min(c,\ \log_2 \text{FC})\big).$$
 
 Code to do this from raw counts, assuming proper previous formating in code/Counts_Processing/utils.py.
+
+#### NOTE! Alternatively, TPM normalization might be used before PCA. But never plotting without correction for sequencing depth and gene length!!
+There is already a TPM file in the (cloud) folders!
+
 ## PCA
 
 With the normalized data, this is absolutely strightfoward. I provide code for some nice classic PCA plot on the log2FC data (or any other normalization for that matter) in code/Analysis/PCA.py.
@@ -108,3 +112,11 @@ the TF. We do not use DAP-seq because that mapping was done in TAIR10 and it doe
 Now we switch gears and programming language!
 
 ## Motif Enrichment Analysis
+
+
+
+
+
+## Further issues to discuss
+
+- What to do with the untreated samples? In both experiments
