@@ -238,5 +238,7 @@ if __name__ == "__main__":
     # drop columns that have 28C
     #lfc = lfc.loc[:, ~lfc.columns.str.contains("28C")]
     ax = plot_pca(lfc, standardize=False)
+    import os
+    os.makedirs("data/PDAMP/analysis_pca", exist_ok=True)
     plt.savefig("data/PDAMP/analysis_pca/pca_example.png", dpi=300)
     print("saved pca_example.png")

@@ -86,6 +86,8 @@ There is already a TPM file in the (cloud) folders!
 
 With the normalized data, this is absolutely strightfoward. I provide code for some nice classic PCA plot on the log2FC data (or any other normalization for that matter) in code/Analysis/PCA.py.
 
+#### NOTE! This is very different from the PCA "recommended" in the DESeq2 pipeline.
+
 ## Sparse RDA (*Advanced*)
 (Discuss if we want to get into this now!)
 
