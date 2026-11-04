@@ -43,20 +43,13 @@ Step 1. Compute geometric mean per gene $i$ across $m$ samples $j$:
 $$K_i^{R} = \left( \prod_{j=1}^{m} K_{ij} \right)^{1/m}.$$
 
 Step 2. Compute the ratios of counts (per gene $i$ and sample $j$) to geometric means (replace nan for 0):
-$$
-\text{ratio} = \frac{K_{ij}}{K_i^{R}}
-$$
+$$\text{ratio} = \frac{K_{ij}}{K_i^{R}}$$
 Step 3. Compute the median ratio per sample (over the genes whose geometric mean is not 0), the size factors:
 
-$$
-s_j = \text{median}_{i:K_i^{R}\neq 0}
-\left(\frac{K_{ij}}{K_i^{R}}\right)
-$$
+$$s_j = \text{median}_{i:K_i^{R}\neq 0}\left(\frac{K_{ij}}{K_i^{R}}\right)$$
 
 Step 4. Normalize counts
-$$
-K^{\text{norm}}_{ij} = \frac{K_{ij}}{s_j}
-$$
+$$K^{\text{norm}}_{ij} = \frac{K_{ij}}{s_j}$$
 
 We will not discuss today why this is better than something else. As a general justification, doing this is consistent with the normalization done by DESeq2 later on the statistics. 
 
