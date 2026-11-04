@@ -49,7 +49,7 @@ $$
 Step 3. Compute the median ratio per sample (over the genes whose geometric mean is not 0), the size factors:
 
 $$
-s_j = \operatorname{median}_{i:K_i^{R}\neq 0}
+s_j = \text{median}_{i:K_i^{R}\neq 0}
 \left(\frac{K_{ij}}{K_i^{R}}\right)
 $$
 
