@@ -49,6 +49,7 @@ Step 3. Compute the median ratio per sample (over the genes whose geometric mean
 $$s_j = \text{median}_{i:K_i^{R}\neq 0}\left(\frac{K_{ij}}{K_i^{R}}\right)$$
 
 Step 4. Normalize counts
+
 $$K^{\text{norm}}_{ij} = \frac{K_{ij}}{s_j}$$
 
 We will not discuss today why this is better than something else. As a general justification, doing this is consistent with the normalization done by DESeq2 later on the statistics. 
