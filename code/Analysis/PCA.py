@@ -148,7 +148,7 @@ def plot_pca(
             kw = dict(edgecolors=SURFACE, linewidths=0.5)
         ax.scatter(
             scores.loc[idx, px], scores.loc[idx, py],
-            s=sizes[idx], c=c, marker=mk, zorder=3, **kw,
+            s=sizes[idx], c=c, marker=mk, zorder=3, **kw, alpha=0.9
         )
 
     if label_groups:
@@ -234,11 +234,11 @@ def plot_pca(
 
 
 if __name__ == "__main__":
-    lfc = pd.read_csv("data/PDAMP/processed/log2FC.csv", index_col=0)
+    lfc = pd.read_csv("data/hormone_temp/processed/log2FC.csv", index_col=0)
     # drop columns that have 28C
     #lfc = lfc.loc[:, ~lfc.columns.str.contains("28C")]
     ax = plot_pca(lfc, standardize=False)
     import os
-    os.makedirs("data/PDAMP/analysis_pca", exist_ok=True)
-    plt.savefig("data/PDAMP/analysis_pca/pca_example.png", dpi=300)
+    os.makedirs("data/hormone_temp/analysis_pca", exist_ok=True)
+    plt.savefig("data/hormone_temp/analysis_pca/pca_example.png", dpi=300)
     print("saved pca_example.png")

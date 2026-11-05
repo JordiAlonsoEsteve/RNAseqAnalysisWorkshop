@@ -133,15 +133,17 @@ def process_counts_log2FC(
     return lfc
 
 if __name__ == "__main__":
-    raw_pdamp = pd.read_csv("data/PDAMP/counts_genes_x_samples.tsv", index_col=0, sep="\t")
+    raw_pdamp = pd.read_csv("data/hormone_temp/counts_genes_x_samples.tsv", index_col=0, sep="\t")
     # drop gene_name column if present
     if "gene_name" in raw_pdamp.columns:
         raw_pdamp = raw_pdamp.drop(columns="gene_name")
     # drop columns that have untreated as treatment
-    raw_pdamp = raw_pdamp.loc[:, ~raw_pdamp.columns.str.contains("_untreated_")]
+    raw_pdamp = raw_pdamp.loc[:, ~raw_pdamp.columns.str.contains("_Untreated_")]
+    # drop room treatments
+    raw_pdamp = raw_pdamp.loc[:, ~raw_pdamp.columns.str.contains("_Room")]
     
     normalized_pdamp_data = median_of_ratios_normalization(raw_pdamp)
 
-    processed_pdamp_data = process_counts_log2FC(normalized_pdamp_data, control_temperature = "21", control_treatment = "mock")
+    processed_pdamp_data = process_counts_log2FC(normalized_pdamp_data, control_temperature = "21", control_treatment = "Mock")
     # save 
-    processed_pdamp_data.to_csv("data/PDAMP/processed/log2FC.csv")
+    processed_pdamp_data.to_csv("data/hormone_temp/processed/log2FC.csv")

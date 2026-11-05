@@ -211,6 +211,7 @@ def load_Y(path):
     """Genes x samples table (columns <Temp>_<Treatment>_<Time>_<Rep>)"""
     Y = pd.read_csv(path, index_col="gene_id")
     parse_sample_columns(Y.columns)  # fail early if a column name is malformed
+    
     return Y
 
 def main(Y_data_url, X_type, out_dir, study_name):
@@ -258,7 +259,7 @@ def main(Y_data_url, X_type, out_dir, study_name):
     best = tune_sparse_rda(
         X.values, Y.values,
         storage_dir=out_dir, study_name=f"{study_name}_{X_type}_rda",
-        alpha=(0.01, 0.1), n_trials=10,
+        alpha=(0.01, 0.1), n_trials=20,
         n_components=(2, 10), n_splits=3,
         standardize_x=(X_type == "kmer"),
         verbose=False, max_iter=100, tol=1e-4,
@@ -285,11 +286,11 @@ def main(Y_data_url, X_type, out_dir, study_name):
         )
 
     # --- biplot
-    ax = biplot(Y_centered, X, A_df, B_df, n_kmers=10)
+    ax = biplot(Y_centered, X, A_df, B_df, n_kmers=20)
     ax.figure.savefig(f"{out_dir}/biplot_{X_type}.png", dpi=300, bbox_inches="tight")
     plt.show()
 
 
 if __name__ == "__main__":
-    main(X_type="pwm", Y_data_url="data/PDAMP/processed/log2FC.csv", out_dir="data/PDAMP/analysis_rda", study_name="PDAMP")
+    main(X_type="pwm", Y_data_url="data/hormone_temp/processed/log2FC.csv", out_dir="data/hormone_temp/analysis_rda", study_name="hormone")
 
