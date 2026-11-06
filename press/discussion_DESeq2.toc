@@ -1,0 +1,4 @@
+\beamer@sectionintoc {1}{``tximport"}{2}{0}{1}
+\beamer@sectionintoc {2}{ANOVA Basics}{4}{0}{2}
+\beamer@sectionintoc {3}{Negative Binomial GLM Basics}{7}{0}{3}
+\beamer@sectionintoc {4}{Interpreting \texttt {$\sim $ treatment * time * temperature}}{14}{0}{4}

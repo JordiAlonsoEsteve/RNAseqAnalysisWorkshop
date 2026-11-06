@@ -1,0 +1,21 @@
+\frametitle{Generalized Linear Model (GLM) for $K_{ij}$}
+
+\small
+\textbf{Definition of terms:}
+\begin{itemize}
+    \item $K_{ij}$: Read count for gene $i$ in sample $j$ ($K_{ij} \in \mathbb{N}_0$)
+    \item $s_{ij}$: Size factor: \textbf{accounting for sequencing depth differences} (Median of Ratios normalization!!)
+    \item $\mu_{ij}$: Expected mean parameter of the Negative Binomial ($\mu_{ij} \in \mathbb{R}^+$)
+\end{itemize}
+
+\vspace{0.2em}
+\textbf{The GLM Framework:}
+\[
+K_{ij} \sim \text{NB}(\text{mean} = \mu_{ij}, \text{dispersion} = \alpha_i)
+\]
+\[
+\mu_{ij} = s_{ij} q_{ij}
+\]
+\\~\\
+The dispersion parameter $\alpha_i$ is estimated also, in a very smart way pooling information from all genes. We do not get into that, we assume it constant.
+
