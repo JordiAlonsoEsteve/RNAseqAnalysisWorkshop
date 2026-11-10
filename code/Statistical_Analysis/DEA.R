@@ -31,9 +31,11 @@ smallestGroupSize <- min(table(interaction(colData$treatment, colData$time, colD
 keep <- rowSums(counts(dds) >= 10) >= smallestGroupSize
 dds  <- dds[keep, ]
 nrow(dds)
-
 # This is the object that you might want to store (Many tables of pvalues and lfc)
 dds <- DESeq(dds)   # size factors, dispersions, Wald tests
+# save dds fitted object
+saveRDS(dds, file = "data/PDAMP/dds_object.rds")
+# Now this for gene-by-gene analysis
 run_gene_viewer(dds)
 
 
