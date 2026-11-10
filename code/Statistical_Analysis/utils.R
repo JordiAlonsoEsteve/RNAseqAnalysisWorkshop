@@ -189,21 +189,49 @@ plot_gene_trajectory <- function(dds, gene, log2_scale = FALSE) {
     actual_data$Expression <- log2(actual_data$Expression + 1)
     grid$predicted_mu <- log2(grid$predicted_mu + 1)
     y_label  <- "Expression (log2 normalized counts + 1)"
-    sub_text <- "Lines = Predicted log₂(μ), Faint points = Actual log₂(Replicates + 1)"
+    sub_text <- "Lines = Predicted log₂(μ), Dashed = Mock Control μ, Faint points = Actual Replicates"
   } else {
     y_label  <- "Expression (Normalized Counts)"
-    sub_text <- "Lines = Predicted μ, Faint points = Actual Replicates"
+    sub_text <- "Lines = Predicted μ, Dashed = Mock Control μ, Faint points = Actual Replicates"
+  }
+  
+  # Case-insensitive factor ordering & mock background reference data
+  treats_lower <- tolower(treats)
+  mock_idx <- which(treats_lower == "mock")
+  
+  if (length(mock_idx) > 0) {
+    mock_name <- treats[mock_idx[1]]
+    treat_levels <- c(mock_name, treats[-mock_idx])
+    
+    # Extract mock grid and drop 'Treatment' so it repeats across all facet panels
+    grid_mock <- subset(grid, Treatment == mock_name)
+    grid_mock$Treatment <- NULL
+  } else {
+    treat_levels <- treats
+    grid_mock <- NULL
   }
   
   grid$Time <- factor(grid$Time, levels = times)
   grid$Temperature <- factor(grid$Temperature, levels = temps)
+  grid$Treatment <- factor(grid$Treatment, levels = treat_levels)
+  
   actual_data$Time <- factor(actual_data$Time, levels = times)
   actual_data$Temperature <- factor(actual_data$Temperature, levels = temps)
+  actual_data$Treatment <- factor(actual_data$Treatment, levels = treat_levels)
   
   temp_colors <- ifelse(temps == "28", "red", "dodgerblue3")
   names(temp_colors) <- temps
   
-  p <- ggplot() +
+  # Build plot with background mock dashed reference lines
+  p <- ggplot()
+  
+  if (!is.null(grid_mock) && nrow(grid_mock) > 0) {
+    p <- p + geom_line(data = grid_mock, 
+                       aes(x = Time, y = predicted_mu, color = Temperature, group = Temperature), 
+                       linetype = "dashed", linewidth = 0.9, alpha = 0.45)
+  }
+  
+  p <- p +
     geom_point(data = actual_data, 
                aes(x = Time, y = Expression, color = Temperature), 
                alpha = 0.5, size = 1.8, position = position_jitter(width = 0.1, height = 0)) +
@@ -234,7 +262,6 @@ plot_gene_trajectory <- function(dds, gene, log2_scale = FALSE) {
   
   return(p)
 }
-
 
 plot_gene_padj_heatmap <- function(dds, gene,
                                    temp_var  = "temperature",
