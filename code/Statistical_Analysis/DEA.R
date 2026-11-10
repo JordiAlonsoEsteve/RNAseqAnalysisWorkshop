@@ -2,10 +2,10 @@ library(DESeq2)
 library(stringr)
 setwd("/home/neggor/PhD/RNA_seq_analysis")
 source("code/Statistical_Analysis/utils.R")
-dataset = "hormone_temp"
+dataset = "PDAMP"
 ## WARNING (take into account what has to be remove and upper/lower cases) TODO
 file <- str_glue("data/{dataset}/counts_genes_x_samples.tsv")
-my_colData <- build_coldata(file, ref_treatment ="Mock", drop_treatments = c("untreated", "Untreated", "Room1", "Room2"))
+my_colData <- build_coldata(file, ref_treatment ="mock", drop_treatments = c("untreated", "Untreated", "Room1", "Room2", "flg22", "Pep1"))
 counts  <- load_counts(file, samples = rownames(my_colData))
 print(my_colData)
 # NOTE! We get the reference of the factors the baseline treatment, mock, temperature 21 and time 0.5.
@@ -16,7 +16,6 @@ print(my_colData$time)
 
 print(counts)
 
-### design
 # ---- design ----
 design_formula <- ~ treatment * time * temperature
 
@@ -40,7 +39,7 @@ dds <- DESeq(dds)   # size factors, dispersions, Wald tests
 saveRDS(dds, file = str_glue("data/{dataset}/dds_object.rds"))
 # Now this for gene-by-gene analysis
 run_gene_viewer(dds)
-
+plot_gene_diff_from_mock_heatmap(dds, gene = gene)
 # Group analysis
 
 

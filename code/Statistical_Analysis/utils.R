@@ -368,6 +368,152 @@ plot_gene_padj_heatmap <- function(dds, gene,
     )
 }
 
+plot_gene_diff_from_mock_heatmap <- function(dds, gene, 
+                                             temp_var  = "temperature", 
+                                             treat_var = "treatment", 
+                                             time_var  = "time",
+                                             alpha     = 0.05, 
+                                             cap       = 5) {
+  
+  stopifnot(gene %in% rownames(dds))
+  
+  cd <- colData(dds)
+  
+  # Extract factor levels
+  temps  <- levels(factor(cd[[temp_var]]))
+  treats <- levels(factor(cd[[treat_var]]))
+  times  <- levels(factor(cd[[time_var]]))
+  
+  # Identify mock control label case-insensitively
+  mock_idx <- which(tolower(treats) == "mock")
+  if (length(mock_idx) == 0) stop("No 'mock' treatment found.")
+  mock_label <- treats[mock_idx[1]]
+  
+  # Extract the model matrix based on your interaction design formula (~ treatment * time * temperature)
+  design_formula <- design(dds)
+  mod_mat <- model.matrix(design_formula, cd)
+  
+  # Build full experimental grid
+  grid <- expand.grid(
+    Temperature = temps, 
+    Treatment   = treats, 
+    Time        = times, 
+    stringsAsFactors = FALSE
+  )
+
+  # Compute padj and log2FC for each cell vs matching mock using model matrix numeric contrasts
+  results_list <- lapply(1:nrow(grid), function(i) {
+    t_val  <- grid$Temperature[i]
+    tr_val <- grid$Treatment[i]
+    ti_val <- grid$Time[i]
+    
+    # If it's the mock control, it's compared to itself (log2FC = 0, padj = 1)
+    if (tolower(tr_val) == tolower(mock_label)) {
+      return(data.frame(
+        Temperature = t_val, Treatment = tr_val, Time = ti_val,
+        padj = 1.0, log2FC = 0.0, stringsAsFactors = FALSE
+      ))
+    }
+    
+    # Selectors for the test group and matching mock control at the same time & temp
+    test_selector <- (cd[[temp_var]] == t_val) & (cd[[treat_var]] == tr_val) & (cd[[time_var]] == ti_val)
+    mock_selector <- (cd[[temp_var]] == t_val) & (tolower(cd[[treat_var]]) == tolower(mock_label)) & (cd[[time_var]] == ti_val)
+    
+    if (!any(test_selector) || !any(mock_selector)) {
+      return(data.frame(Temperature = t_val, Treatment = tr_val, Time = ti_val, 
+                        padj = NA_real_, log2FC = NA_real_, stringsAsFactors = FALSE))
+    }
+    
+    # Calculate mean model matrix vectors for both groups and subtract (Test - Mock)
+    mean_test <- colMeans(mod_mat[test_selector, , drop = FALSE])
+    mean_mock <- colMeans(mod_mat[mock_selector, , drop = FALSE])
+    contrast_vec <- mean_test - mean_mock
+    
+    # --- Smart Printing ---
+    cat(sprintf("=== Testing: %s vs %s | Temp: %s | Time: %s ===\n", tr_val, mock_label, t_val, ti_val))
+    
+    # Extract only non-zero coefficients (ignoring tiny floating-point artifacts)
+    nz_terms <- contrast_vec[abs(contrast_vec) > 1e-8]
+    
+    # Print them neatly as a named vector or data frame snippet
+    print(round(nz_terms, 4))
+    cat(sprintf("Total active coefficients involved: %d\n\n", length(nz_terms)))
+    # ----------------------
+    
+    # Run DESeq2 contrast using the numeric vector
+    res_row <- tryCatch({
+      res <- results(dds, contrast = contrast_vec)
+      res[gene, c("padj", "log2FoldChange")]
+    }, error = function(e) {
+      data.frame(padj = NA_real_, log2FoldChange = NA_real_)
+    })
+    
+    data.frame(
+      Temperature = t_val,
+      Treatment   = tr_val,
+      Time        = ti_val,
+      padj        = res_row$padj,
+      log2FC      = res_row$log2FoldChange,
+      stringsAsFactors = FALSE
+    )
+  })
+  
+  grid_stats <- do.call(rbind, results_list)
+  
+  grid_stats$sig      <- !is.na(grid_stats$padj) & grid_stats$padj < alpha
+  grid_stats$nlogp    <- -log10(pmax(grid_stats$padj, 1e-300))
+  
+  # Diverging fill: green for up, orange for down, NA for non-significant / mock
+  grid_stats$fill_val <- ifelse(grid_stats$sig & tolower(grid_stats$Treatment) != tolower(mock_label), 
+                                ifelse(grid_stats$log2FC < 0, -pmin(grid_stats$nlogp, cap), pmin(grid_stats$nlogp, cap)), 
+                                NA_real_)
+  
+  # Label formatting
+  is_mock_row <- tolower(grid_stats$Treatment) == tolower(mock_label)
+  grid_stats$label <- ifelse(is_mock_row, "mock",
+                             ifelse(is.na(grid_stats$padj), "", sprintf("%.1f", grid_stats$nlogp)))
+  
+  # Axis ordering
+  num_order <- function(x) x[order(as.numeric(gsub("[^0-9.]", "", x)))]
+  clean     <- function(x) sub("^[A-Za-z](?=[-0-9.])", "", x, perl = TRUE)
+  
+  t_lv <- num_order(temps)
+  m_lv <- num_order(times)
+  
+  grid_stats$Temperature <- factor(grid_stats$Temperature, levels = t_lv, labels = clean(t_lv))
+  grid_stats$Time        <- factor(grid_stats$Time,        levels = m_lv, labels = clean(m_lv))
+  grid_stats$Treatment   <- factor(grid_stats$Treatment,   levels = rev(treats))
+  
+  # Plotting heatmap
+  ggplot(grid_stats, aes(x = Time, y = Treatment, fill = fill_val)) +
+    geom_tile(color = "grey50", linewidth = 0.5) +
+    geom_text(aes(label = label), size = 3.2) +
+    facet_wrap(~ Temperature, labeller = label_both) +
+    scale_fill_gradient2(
+      low = "darkorange", mid = "white", high = "forestgreen",
+      midpoint = 0,
+      name = expression(-log[10](padj)),
+      na.value = "white",
+      limits = c(-cap, cap),
+      oob = scales::squish,
+      labels = function(x) abs(x)
+    ) +
+    theme_minimal() +
+    labs(
+      title    = paste0("Treatment Response vs. Matching Mock Control | Gene: ", gene),
+      subtitle = paste0("Contrasts evaluated at each coordinate (Temp × Time) | Green: Up (LFC > 0) | Orange: Down (LFC < 0) | padj < ", alpha),
+      x        = "Time Point", 
+      y        = "Treatment"
+    ) +
+    theme(
+      strip.text    = element_text(face = "bold", size = 11),
+      plot.title    = element_text(face = "bold", hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5, color = "grey40", size = 8.5),
+      panel.grid    = element_blank(),
+      panel.border  = element_rect(color = "grey75", fill = NA, linewidth = 0.8),
+      panel.spacing = unit(1.5, "lines")
+    )
+}
 
 run_gene_viewer <- function(dds) {
   
@@ -417,28 +563,39 @@ run_gene_viewer <- function(dds) {
           actionButton("search_btn", "Explore Gene", class = "btn-primary btn-lg", width = "100%")
         )
       } else {
-        # Results Dashboard Page (Both plots side-by-side with Log2 control in header)
+        # Results Dashboard Page with Tabset (Trajectory Tab loads first and instantly)
         fluidPage(
           fluidRow(
             column(12,
                    div(style = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 10px;",
                        h4(paste("Viewing Gene:", current_gene())),
                        div(style = "display: flex; align-items: center; gap: 20px;",
-                           checkboxInput("log2_toggle", "Log2 Scale", value = TRUE), # Enabled by default
+                           checkboxInput("log2_toggle", "Log2 Scale", value = TRUE),
                            actionButton("back_btn", "← Search Another Gene", class = "btn-default btn-sm")
                        )
                    )
             )
           ),
           fluidRow(
-            column(6,
-                   tags$div(style = "background: #fff; padding: 10px; border-radius: 5px; border: 1px solid #ddd;",
-                            plotOutput("trajectoryPlot", height = "580px")
-                   )
-            ),
-            column(6,
-                   tags$div(style = "background: #fff; padding: 10px; border-radius: 5px; border: 1px solid #ddd;",
-                            plotOutput("heatmapPlot", height = "580px")
+            column(12,
+                   tabsetPanel(
+                     id = "plots_tab",
+                     tabPanel("📈 Gene Trajectory",
+                              tags$div(style = "background: #fff; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-top: 10px;",
+                                       plotOutput("trajectoryPlot", height = "580px")
+                              )
+                     ),
+                     tabPanel("🔥 Significance Heatmap",
+                              tags$div(style = "background: #fff; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-top: 10px;",
+                                       div(style = "margin-bottom: 15px;",
+                                           selectInput("heatmap_type", "Select Heatmap Type:", 
+                                                       choices = c("Time/Temp Matched vs Mock" = "matched", 
+                                                                   "Original Coefficients" = "coef"),
+                                                       selected = "matched", width = "300px")
+                                       ),
+                                       plotOutput("heatmapPlot", height = "540px")
+                              )
+                     )
                    )
             )
           )
@@ -446,7 +603,7 @@ run_gene_viewer <- function(dds) {
       }
     })
     
-    # Cached Trajectory Plot Generation (depends on log2 toggle state)
+    # Cached Trajectory Plot Generation
     traj_reactive <- reactive({
       req(app_state() == "results", current_gene())
       g <- current_gene()
@@ -460,14 +617,21 @@ run_gene_viewer <- function(dds) {
       return(p)
     })
     
-    # Cached Heatmap Plot Generation
+    # Cached Heatmap Plot Generation (only computes when tab is opened)
     heat_reactive <- reactive({
-      req(app_state() == "results", current_gene())
+      req(app_state() == "results", current_gene(), input$heatmap_type)
       g <- current_gene()
-      key <- paste0(g, "_heat")
+      h_type <- input$heatmap_type
+      
+      key <- paste0(g, "_heat_", h_type)
       if (exists(key, envir = plot_cache)) return(get(key, envir = plot_cache))
       
-      p <- plot_gene_padj_heatmap(dds = dds, gene = g)
+      if (h_type == "matched") {
+        p <- plot_gene_diff_from_mock_heatmap(dds = dds, gene = g)
+      } else {
+        p <- plot_gene_padj_heatmap(dds = dds, gene = g)
+      }
+      
       assign(key, p, envir = plot_cache)
       return(p)
     })
