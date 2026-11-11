@@ -1,3 +1,18 @@
+# Conda environment
+```bash
+conda create -n deseq_enrich --strict-channel-priority \
+  -c conda-forge -c bioconda \
+  r-base=4.4 \
+  bioconductor-deseq2 \
+  bioconductor-clusterprofiler \
+  bioconductor-enrichplot \
+  bioconductor-org.at.tair.db \
+  r-stringr r-ggplot2 r-shiny r-dt r-bslib
+
+conda activate deseq_enrich
+```
+
+
 # Pre-processing
 
 ### Count tables
