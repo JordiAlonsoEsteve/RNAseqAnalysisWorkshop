@@ -1,8 +1,9 @@
 library(DESeq2)
 library(stringr)
-setwd("/home/neggor/PhD/RNA_seq_analysis")
+  setwd("/home/neggor/PhD/RNA_seq_analysis")
 source("code/Statistical_Analysis/utils.R")
 source("code/Statistical_Analysis/gene_visualizer.R")
+source("code/Statistical_Analysis/group_analysis.R")
 dataset = "hormone_temp" # hormone_temp # PDAMP
 ## WARNING (take into account what has to be remove and upper/lower cases) TODO
 file <- str_glue("data/{dataset}/counts_genes_x_samples.tsv")

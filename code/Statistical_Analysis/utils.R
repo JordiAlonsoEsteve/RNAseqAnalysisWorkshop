@@ -1,7 +1,6 @@
 library(shiny)
 library(ggplot2)
 library(DT)
-library(ggtext)
 
 build_coldata <- function(file,
                           sep = NULL,
