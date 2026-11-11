@@ -235,10 +235,20 @@ def plot_pca(
 
 if __name__ == "__main__":
     lfc = pd.read_csv("data/hormone_temp/processed/log2FC.csv", index_col=0)
+    # drop if + in the column name
+    lfc = lfc.loc[:, ~lfc.columns.str.contains(r"\+")]
     # drop columns that have 28C
     #lfc = lfc.loc[:, ~lfc.columns.str.contains("28C")]
     ax = plot_pca(lfc, standardize=False)
     import os
     os.makedirs("data/hormone_temp/analysis_pca", exist_ok=True)
-    plt.savefig("data/hormone_temp/analysis_pca/pca_example.png", dpi=300)
+    plt.savefig("data/hormone_temp/analysis_pca/pca_example_no_int.png", dpi=300)
     print("saved pca_example.png")
+
+    # Now PC 3 and 4
+    ax = plot_pca(lfc, standardize=False, pcs=(3, 4))
+    plt.savefig("data/hormone_temp/analysis_pca/pca_example_no_int_PC3_4.png", dpi=300)
+
+    # Now 5 and 6
+    ax = plot_pca(lfc, standardize=False, pcs=(5, 6))
+    plt.savefig("data/hormone_temp/analysis_pca/pca_example_no_int_PC5_6.png", dpi=300)

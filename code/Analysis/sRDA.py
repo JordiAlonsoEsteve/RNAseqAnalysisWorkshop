@@ -1,3 +1,4 @@
+import hashlib
 import os
 import re
 import subprocess
@@ -40,83 +41,109 @@ def parse_sample_columns(cols):
     return parts
 
 def biplot(Y_centered, C, fitted_A, fitted_B,
-           n_kmers=10, arrow_fill=0.65, size_range=(35, 250),
-           markers=("o", "s", "^", "D", "v", "P")):
-    """Biplot of the fitted RDA model (samples = points, k-mers/motifs = arrows)."""
-
+           n_kmers=10, arrow_fill=0.8, size_range=(35, 250),
+           markers=("o", "s", "^", "D", "v", "P"), pad=0.05):
+    """Biplot of the fitted RDA model (samples = points, k-mers/motifs = arrows).
+ 
+    arrow_fill : the longest arrow tip is placed at this fraction of the sample
+                 cloud extent (per axis, so no arrow can overshoot the points).
+    pad        : fractional padding added around points + arrow tips so labels fit.
+    """
+ 
     # --- order components by variance explained, highest first
     pct_comp = variance_explained(Y_centered, C, fitted_A, fitted_B)
     order = np.argsort(pct_comp)[::-1]
     A = fitted_A.values[:, order]
     B = fitted_B.values[order, :]
-
+ 
     # --- drop features with all-zero weights
     keep = np.any(A != 0, axis=1)
     A = A[keep]
     kmer_names = np.asarray(fitted_A.index)[keep]
-
+ 
     # --- sample metadata
     meta = parse_sample_columns(fitted_B.columns)
     treatment = meta["treatment"].to_numpy()
     temperature = meta["temperature"].to_numpy()
     time = meta["time"].to_numpy()
-
+ 
     # --- colours (treatment) and marker shapes (temperature)
     levels = list(pd.unique(treatment))
     cmap = plt.get_cmap("Set2" if len(levels) <= 8 else "tab20")
     colors = {h: cmap(i % cmap.N) for i, h in enumerate(levels)}
-
+ 
     temp_levels = sorted(pd.unique(temperature))
     marker_of = {t: markers[i % len(markers)] for i, t in enumerate(temp_levels)}
-
+ 
     # --- point sizes on a signed log scale so negative / zero times are allowed
     def tf(t):
         t = np.asarray(t, dtype=float)
         return np.sign(t) * np.log1p(np.abs(t))
-
+ 
     lt = tf(time)
     span = lt.max() - lt.min()
-
+ 
     def size_of(t):
         if span == 0:
             return np.full(np.shape(t), np.mean(size_range))
         return size_range[0] + (size_range[1] - size_range[0]) * (tf(t) - lt.min()) / span
-
+ 
     # --- coordinates
-    S = B[[0, 1], :].T
-    A2 = A[:, [0, 1]]
+    S = B[[0, 1], :].T                      # samples (n_samples x 2)
+    A2 = A[:, [0, 1]]                       # loadings (n_features x 2)
     length = np.linalg.norm(A2, axis=1)
     top = np.argsort(-length)[:n_kmers]
-    arrows = A2[top] * (arrow_fill * np.abs(S).max() / length[top].max())
-
+    Atop = A2[top]
+ 
+    # --- arrow scaling: ONE uniform factor (keeps arrow directions intact),
+    #     chosen so the arrows fit inside the sample cloud on BOTH axes.
+    eps = 1e-12
+    sx = np.abs(S[:, 0]).max() / max(np.abs(Atop[:, 0]).max(), eps)
+    sy = np.abs(S[:, 1]).max() / max(np.abs(Atop[:, 1]).max(), eps)
+    arrows = Atop * (arrow_fill * min(sx, sy))
+    labels = kmer_names[top]
+ 
+    # --- explicit, symmetric-ish limits covering points AND arrow tips
+    pts = np.vstack([S, arrows, [[0.0, 0.0]]])
+    lo, hi = pts.min(axis=0), pts.max(axis=0)
+    rng = np.maximum(hi - lo, eps)
+    lo, hi = lo - pad * rng, hi + pad * rng
+ 
     # --- figure
     fig, ax = plt.subplots(figsize=(9, 6.5), dpi=150)
+    ax.set_xlim(lo[0], hi[0])
+    ax.set_ylim(lo[1], hi[1])
     ax.grid(color="#f0f0f0", linestyle="--", linewidth=1, zorder=0)
     ax.axhline(0, color="#d0d0d0", lw=1.2, zorder=1)
     ax.axvline(0, color="#d0d0d0", lw=1.2, zorder=1)
-
+ 
     for temp in temp_levels:
         m = temperature == temp
         ax.scatter(S[m, 0], S[m, 1], s=size_of(time[m]),
                    c=[colors[h] for h in treatment[m]],
                    marker=marker_of[temp],
                    alpha=0.85, edgecolor="white", lw=0.8, zorder=2)
-
+ 
     # --- arrows and labels
     texts = []
     arrow_color = "#A93226"
     halo = pe.withStroke(linewidth=2.5, foreground="white", alpha=0.9)
-
-    for (x, y), j in zip(arrows, top):
+ 
+    for (x, y), name in zip(arrows, labels):
         ax.annotate("", xy=(x, y), xytext=(0, 0),
                     arrowprops=dict(arrowstyle="-|>", color=arrow_color, lw=1.5,
                                     shrinkA=0, shrinkB=0, alpha=0.9),
+                    annotation_clip=False,   # never hide an arrow whose tip is near the edge
                     zorder=3)
-        txt = ax.text(x, y, kmer_names[j], color=arrow_color,
+        txt = ax.text(x, y, name, color=arrow_color,
                       fontsize=10, fontweight="500", zorder=4)
         txt.set_path_effects([halo])
         texts.append(txt)
+ 
+    # equal aspect first, so adjust_text works in the final coordinate system
     ax.set_aspect("equal", adjustable="datalim")
+    fig.canvas.draw()
+ 
     adjust_text(
         texts,
         x=S[:, 0], y=S[:, 1],
@@ -128,12 +155,12 @@ def biplot(Y_centered, C, fitted_A, fitted_B,
         expand=(1.2, 1.35),
         max_move=(10, 10),
         ensure_inside_axes=True,
-        expand_axes=True,
+        expand_axes=False,                  # limits are already set; don't let them drift
         iter_lim=1500,
         min_arrow_len=3,
         arrowprops=dict(arrowstyle="-", color=arrow_color, lw=0.7, alpha=0.65),
     )
-
+ 
     # --- legends: treatment (colour), temperature (shape), time (size)
     treatment_handles = [
         Line2D([], [], marker="o", ls="", color=colors[h], markersize=8,
@@ -143,7 +170,7 @@ def biplot(Y_centered, C, fitted_A, fitted_B,
     leg1 = ax.legend(handles=treatment_handles, title="Treatment", frameon=False,
                      loc="upper left", title_fontproperties={"weight": "bold"})
     ax.add_artist(leg1)
-
+ 
     temp_handles = [
         Line2D([], [], marker=marker_of[t], ls="", color="#999999", markersize=8,
                markeredgecolor="white", markeredgewidth=0.5, label=f"{t:g} °C")
@@ -152,7 +179,7 @@ def biplot(Y_centered, C, fitted_A, fitted_B,
     leg2 = ax.legend(handles=temp_handles, title="Temperature", frameon=False,
                      loc="upper right", title_fontproperties={"weight": "bold"})
     ax.add_artist(leg2)
-
+ 
     ut = np.unique(time)
     show = np.unique(ut[np.linspace(0, len(ut) - 1, min(4, len(ut))).round().astype(int)])
     time_handles = [
@@ -164,7 +191,7 @@ def biplot(Y_centered, C, fitted_A, fitted_B,
     ax.legend(handles=time_handles, title="Time", frameon=False,
               loc="lower left", labelspacing=1.2,
               title_fontproperties={"weight": "bold"})
-
+ 
     # --- axes
     total = pct_comp.sum()
     for axis_idx, setter in enumerate((ax.set_xlabel, ax.set_ylabel)):
@@ -172,13 +199,13 @@ def biplot(Y_centered, C, fitted_A, fitted_B,
         setter(f"Component {c + 1} (R² = {pct_comp[c]:.1f}%, "
                f"Prop. Var = {100 * pct_comp[c] / total:.2f}%)",
                fontsize=11, fontweight="bold", color="#444444")
-
+ 
     ax.tick_params(axis="both", colors="#666666", labelsize=9, length=4)
     for s in ("top", "right", "bottom", "left"):
         ax.spines[s].set_visible(True)
         ax.spines[s].set_color("#bbbbbb")
         ax.spines[s].set_linewidth(1.2)
-
+ 
     fig.tight_layout()
     return ax
 
@@ -186,8 +213,43 @@ def generate_promoter(gff_file, fasta_file, output_fasta, upstream=1000, downstr
     promoter_dict = gff_to_fasta(fasta_file, gff_file, output_fasta, upstream=upstream, downstream=downstream)
     return promoter_dict
 
-def generate_X_pwm(promoter_dict, meme_file, pseudocount=0.01, both_strands=True):
-    X_pwm = pwm_logsumexp_matrix(promoter_dict, meme_file, pseudocount=pseudocount, both_strands=both_strands)
+def _cache_key(promoter_dict, meme_file, pseudocount, both_strands):
+    """Hash everything that affects the result: sequences, motif file contents, params."""
+    h = hashlib.sha256()
+    for gene_id in sorted(promoter_dict):
+        h.update(str(gene_id).encode())
+        h.update(b"\0")
+        h.update(str(promoter_dict[gene_id]).encode())
+        h.update(b"\0")
+    with open(meme_file, "rb") as f:
+        h.update(f.read())
+    h.update(f"|{pseudocount!r}|{both_strands!r}".encode())
+    return h.hexdigest()[:16]
+  
+def generate_X_pwm(promoter_dict, meme_file, pseudocount=0.01, both_strands=True,
+                   cache_dir="data/cache", use_cache=True):
+    """PWM log-sum-exp matrix, cached on disk.
+ 
+    The cache key is a hash of the promoter sequences, the contents of the MEME
+    file, pseudocount and both_strands, so changing any of them (including
+    upstream/downstream lengths, which change the sequences) recomputes
+    automatically.
+    """
+    if not use_cache:
+        return pwm_logsumexp_matrix(promoter_dict, meme_file,
+                                    pseudocount=pseudocount, both_strands=both_strands)
+ 
+    os.makedirs(cache_dir, exist_ok=True)
+    key = _cache_key(promoter_dict, meme_file, pseudocount, both_strands)
+    path = os.path.join(cache_dir, f"X_pwm_{key}.pkl")
+ 
+    if os.path.exists(path):
+        print(f"Loading cached PWM matrix: {path}")
+        return pd.read_pickle(path)
+ 
+    X_pwm = pwm_logsumexp_matrix(promoter_dict, meme_file,
+                                 pseudocount=pseudocount, both_strands=both_strands)
+    X_pwm.to_pickle(path)
     return X_pwm
 
 def variance_explained(Y_centered, C, fitted_A, fitted_B):
@@ -259,7 +321,7 @@ def main(Y_data_url, X_type, out_dir, study_name):
     best = tune_sparse_rda(
         X.values, Y.values,
         storage_dir=out_dir, study_name=f"{study_name}_{X_type}_rda",
-        alpha=(0.01, 0.1), n_trials=20,
+        alpha=(0.01, 0.1), n_trials=50,
         n_components=(2, 10), n_splits=3,
         standardize_x=(X_type == "kmer"),
         verbose=False, max_iter=100, tol=1e-4,
@@ -286,11 +348,12 @@ def main(Y_data_url, X_type, out_dir, study_name):
         )
 
     # --- biplot
-    ax = biplot(Y_centered, X, A_df, B_df, n_kmers=20)
+    ax = biplot(Y_centered, X, A_df, B_df, n_kmers=12)
     ax.figure.savefig(f"{out_dir}/biplot_{X_type}.png", dpi=300, bbox_inches="tight")
     plt.show()
 
 
 if __name__ == "__main__":
     main(X_type="pwm", Y_data_url="data/hormone_temp/processed/log2FC.csv", out_dir="data/hormone_temp/analysis_rda", study_name="hormone")
+    main(X_type="kmer", Y_data_url="data/hormone_temp/processed/log2FC.csv", out_dir="data/hormone_temp/analysis_rda", study_name="hormone")
 
