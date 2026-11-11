@@ -3,10 +3,14 @@ library(stringr)
 setwd("/home/neggor/PhD/RNA_seq_analysis")
 source("code/Statistical_Analysis/utils.R")
 source("code/Statistical_Analysis/gene_visualizer.R")
-dataset = "hormone_temp"
+dataset = "hormone_temp" # hormone_temp # PDAMP
 ## WARNING (take into account what has to be remove and upper/lower cases) TODO
 file <- str_glue("data/{dataset}/counts_genes_x_samples.tsv")
-my_colData <- build_coldata(file, ref_treatment ="Mock", drop_treatments = c("untreated", "Untreated", "Room1", "Room2"))
+if (dataset =="PDAMP"){
+  my_colData <- build_coldata(file, ref_treatment ="mock", drop_treatments = c("untreated", "Untreated", "Room1", "Room2"))
+}else{
+  my_colData <- build_coldata(file, ref_treatment ="Mock", drop_treatments = c("untreated", "Untreated", "Room1", "Room2"))
+}
 counts  <- load_counts(file, samples = rownames(my_colData))
 print(my_colData)
 # NOTE! We get the reference of the factors the baseline treatment, mock, temperature 21 and time 0.5.
